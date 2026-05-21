@@ -13,7 +13,7 @@
     "tsc": "tsc --noemit"
   },
   "devDependencies": {
-    "eslint": "^10.3.x",
+    "eslint": "^10.4.x",
     "eslint-config-prettier": "^10.1.x",
     "eslint-plugin-prettier": "^5.5.x",
     "globals": "^17.6.x",
