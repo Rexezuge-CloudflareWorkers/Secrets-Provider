@@ -20,7 +20,7 @@
     "jsonc-parser": "^3.3.x",
     "prettier": "^3.8.x",
     "typescript": "^6.0.x",
-    "typescript-eslint": "^8.59.x",
+    "typescript-eslint": "^8.60.x",
     "wrangler": "^4.95.x"
   },
   "dependencies": {}
