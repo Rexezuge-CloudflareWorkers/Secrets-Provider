@@ -1,0 +1,80 @@
+name: Continuous Deployment
+
+permissions:
+  contents: read
+
+on:
+  workflow_run:
+    workflows:
+      - Continuous Integration
+    branches:
+      - main
+    types:
+      - completed
+  repository_dispatch:
+    types:
+      - Upstream Sync Deployment
+  workflow_dispatch:
+
+concurrency:
+  group: continuous-deployment-${{ github.event.workflow_run.head_branch || github.event.client_payload.branch || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-worker:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    name: Deploy Cloudflare Worker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.event.client_payload.sha || github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Prepare Wrangler Configuration
+        run: |
+          if [ -n "${WRANGLER_JSONC}" ]; then
+            printf '%s\n' "${WRANGLER_JSONC}" > wrangler.jsonc
+          else
+            cp wrangler.template.jsonc wrangler.jsonc
+          fi
+        env:
+          WRANGLER_JSONC: ${{ vars.WRANGLER_JSONC }}
+
+      - name: Check Wrangler Configuration Version
+        run: |
+          CURRENT_VERSION=$(grep '"\$version"' wrangler.jsonc | sed 's/.*: *\([0-9]*\).*/\1/' 2>/dev/null || echo "0")
+          CURRENT_VERSION=${CURRENT_VERSION:-0}
+          MINIMUM_TEMPLATE_VERSION=$(grep '"\$minimumVersion"' wrangler.template.jsonc | sed 's/.*: *\([0-9]*\).*/\1/')
+          if [ "$CURRENT_VERSION" -lt "$MINIMUM_TEMPLATE_VERSION" ]; then
+            echo "Error: wrangler.jsonc version ($CURRENT_VERSION) is below minimum template version ($MINIMUM_TEMPLATE_VERSION)"
+            exit 1
+          fi
+
+      - name: Generate Cloudflare Types
+        run: npm run cf-typegen
+
+      - name: Type Check
+        run: npm run tsc
+
+      - name: Dry Run Deploy with Wrangler
+        run: npm run deploy:dry-run
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy with Wrangler
+        run: npm run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
