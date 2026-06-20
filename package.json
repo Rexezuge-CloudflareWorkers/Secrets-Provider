@@ -21,7 +21,7 @@
     "prettier": "^3.8.x",
     "typescript": "^6.0.x",
     "typescript-eslint": "^8.61.x",
-    "wrangler": "^4.100.x"
+    "wrangler": "^4.103.x"
   },
   "dependencies": {}
 }
