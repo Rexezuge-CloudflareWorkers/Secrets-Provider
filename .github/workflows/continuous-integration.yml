@@ -49,8 +49,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
       - name: Enable Auto-Merge
-        run: gh pr merge --auto --merge "$PR_URL"
+        uses: ./.github/actions/retry-step
+        with:
+          command: gh pr merge --auto --merge "$PR_URL"
+          max_attempts: '5'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
@@ -65,16 +71,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
       - name: Dispatch Deployment
-        uses: actions/github-script@v7
+        uses: ./.github/actions/retry-step
         with:
-          script: |
-            await github.rest.repos.createDispatchEvent({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              event_type: 'Upstream Sync Deployment',
-              client_payload: {
-                branch: context.payload.client_payload?.branch || 'main',
-                sha: context.payload.client_payload?.sha || context.sha,
-              },
-            });
+          command: >
+            printf '{"event_type":"Upstream Sync Deployment","client_payload":{"branch":"%s","sha":"%s"}}\n'
+            "$PAYLOAD_BRANCH" "$PAYLOAD_SHA"
+            | gh api repos/${{ github.repository }}/dispatches --method POST --input -
+          max_attempts: '2'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAYLOAD_BRANCH: ${{ github.event.client_payload.branch || 'main' }}
+          PAYLOAD_SHA: ${{ github.event.client_payload.sha || github.sha }}
