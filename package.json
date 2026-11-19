@@ -18,7 +18,7 @@
     "eslint-plugin-prettier": "^5.5.x",
     "globals": "^17.14.x",
     "jsonc-parser": "^3.3.x",
-    "prettier": "^3.9.x",
+    "prettier": "^3.10.x",
     "typescript": "^6.0.x",
     "typescript-eslint": "^8.72.x",
     "wrangler": "^4.158.x"
